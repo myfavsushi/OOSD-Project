@@ -1,0 +1,284 @@
+import datetime
+from typing import List, Optional
+
+# ==========================================
+# 1. Base Class: USER
+# ==========================================
+class User:
+    def __init__(self, userID, name, email, password, role):
+        self.__userID = userID        # Private Attribute (Encapsulation)
+        self.__name = name
+        self.__email = email
+        self.__password = password
+        self.__role = role
+        self.reminders = []           # Aggregation: User has Reminders
+        self.feedbacks = []           # Aggregation: User has Feedback
+
+    # Getters for private attributes
+    def get_userID(self): return self.__userID
+    def get_name(self): return self.__name
+    def get_role(self): return self.__role
+
+    def login(self, email, password):
+        if self.__email == email and self.__password == password:
+            print(f"Login Successful! Welcome, {self.__name} ({self.__role})")
+            return True
+        print("Login Failed: Invalid credentials.")
+        return False
+
+    def logout(self):
+        print(f"User {self.__name} has logged out.")
+
+    def updateProfile(self, new_name=None, new_password=None):
+        if new_name: self.__name = new_name
+        if new_password: self.__password = new_password
+        print("Profile updated successfully.")
+
+    # Polymorphism: Virtual method to be overridden by children
+    def display_dashboard(self):
+        print(f"--- Generic User Dashboard for {self.__name} ---")
+
+
+# ==========================================
+# 2. Support Classes: Reminder & Feedback
+# ==========================================
+class Reminder:
+    def __init__(self, reminderID, message, dueDateTime, type_):
+        self.__reminderID = reminderID
+        self.__message = message
+        self.__dueDateTime = dueDateTime
+        self.__isRead = False
+        self.__type = type_
+
+    # Polymorphism (Overloading): Simulating overloading snooze() and snooze(minutes)
+    def snooze(self, minutes: int = None):
+        if minutes:
+            print(f"Reminder snoozed for {minutes} minutes.")
+        else:
+            print("Reminder snoozed for default duration (10 mins).")
+
+    def getDetails(self):
+        return f"Reminder: {self.__message} at {self.__dueDateTime}"
+
+class Feedback:
+    def __init__(self, feedbackID, rating, comments, anonymous=False):
+        self.__feedbackID = feedbackID
+        self.__rating = rating
+        self.__comments = comments
+        self.__anonymous = anonymous
+
+    def storeEvaluation(self):
+        print(f"Feedback stored: {self.__rating}/5 - {self.__comments}")
+        return True
+
+
+# ==========================================
+# 3. Core Logic: Task & Progress
+# ==========================================
+class Progress:
+    def __init__(self, comments, completionRate):
+        self.__lastUpdated = datetime.datetime.now()
+        self.__comments = comments
+        self.__completionRate = completionRate
+
+    def showReport(self):
+        print(f"Progress Report: {self.__completionRate}% completed. Note: {self.__comments}")
+
+class Task:
+    def __init__(self, taskID, title):
+        self.__taskID = taskID
+        self.__title = title
+        self.__progress = 0
+        self.__status = "To Do"
+        self.progress_history = []  # Composition: Task has Progress logs
+
+    def get_title(self): return self.__title
+
+    # Polymorphism (Overloading): updateProgress(int) vs generic update
+    def updateProgress(self, amount: int):
+        self.__progress = amount
+        if self.__progress >= 100:
+            self.__status = "Done"
+        else:
+            self.__status = "In Progress"
+        
+        # Composition: Creating a new Progress object linked to this task
+        new_prog = Progress(f"Updated to {amount}%", amount)
+        self.progress_history.append(new_prog)
+        print(f"Task '{self.__title}' updated to {self.__progress}% ({self.__status})")
+
+    def assignStudent(self, studentID):
+        print(f"Task '{self.__title}' assigned to Student ID: {studentID}")
+
+
+# ==========================================
+# 4. Aggregator Class: Team
+# ==========================================
+class Team:
+    def __init__(self, teamID, teamName, projectTitle, joinCode):
+        self.__teamID = teamID
+        self.__teamName = teamName
+        self.__projectTitle = projectTitle
+        self.__joinCode = joinCode
+        self.__members = []  # List<Student>
+        self.__tasks = []    # List<Task>
+
+    def validateJoinCode(self, inputCode):
+        return self.__joinCode == inputCode
+
+    def addMember(self, student):
+        self.__members.append(student)
+        print(f"{student.get_name()} added to Team '{self.__teamName}'.")
+        return True
+
+    def addTask(self, newTask: Task):
+        self.__tasks.append(newTask)
+        print(f"Task '{newTask.get_title()}' added to project '{self.__projectTitle}'.")
+
+    def getProgress(self):
+        if not self.__tasks: return 0.0
+        # Calculate avg progress of all tasks
+        return len(self.__tasks) # Placeholder logic
+
+    def show_team_info(self):
+        print(f"\n[Team Info] {self.__teamName}: {self.__projectTitle}")
+        print(f"Members: {[s.get_name() for s in self.__members]}")
+        print(f"Tasks: {[t.get_title() for t in self.__tasks]}")
+
+
+# ==========================================
+# 5. Child Classes: Student, Lecturer, TeamLeader
+# ==========================================
+class Student(User):
+    def __init__(self, userID, name, email, password, studentID, course, semester):
+        super().__init__(userID, name, email, password, "Student") # Inheritance call
+        self.__studentID = studentID
+        self.__course = course
+        self.__semester = semester
+        self.my_team = None # Association
+
+    # Polymorphism (Overriding): Specialized dashboard for Student
+    def display_dashboard(self):
+        print(f"\n--- STUDENT DASHBOARD: {self.get_name()} ---")
+        print(f"Course: {self.__course} | Sem: {self.__semester}")
+        if self.my_team:
+            self.my_team.show_team_info()
+        else:
+            print("Status: Not in a team yet.")
+
+    def joinTeam(self, team: Team, code: str):
+        if team.validateJoinCode(code):
+            team.addMember(self)
+            self.my_team = team
+        else:
+            print("Error: Invalid Join Code.")
+
+    def updateTask(self, task: Task, percent: int):
+        print(f"Student {self.get_name()} is updating task...")
+        task.updateProgress(percent)
+
+
+class TeamLeader(Student):
+    def __init__(self, userID, name, email, password, studentID, course, semester, leaderID):
+        # Inheritance: TeamLeader is a Student
+        super().__init__(userID, name, email, password, studentID, course, semester)
+        self.__leaderID = leaderID
+        self.__contributionScore = 0.0
+
+    def assignTask(self, task: Task, student: Student):
+        print(f"[Leader Action] Assigning '{task.get_title()}' to {student.get_name()}")
+        task.assignStudent(student.get_userID())
+
+    def monitorProgress(self):
+        print(f"[Leader Action] Monitoring team progress...")
+        if self.my_team:
+            self.my_team.show_team_info()
+
+
+class Lecturer(User):
+    def __init__(self, userID, name, email, password, lecturerID, department):
+        super().__init__(userID, name, email, password, "Lecturer")
+        self.__lecturerID = lecturerID
+        self.__department = department
+        self.supervised_teams = []
+
+    # Polymorphism (Overriding): Specialized dashboard for Lecturer
+    def display_dashboard(self):
+        print(f"\n--- LECTURER DASHBOARD: Dr. {self.get_name()} ---")
+        print(f"Dept: {self.__department}")
+        print(f"Supervising {len(self.supervised_teams)} teams.")
+
+    def createTeam(self, teamID, name, title, code):
+        new_team = Team(teamID, name, title, code)
+        self.supervised_teams.append(new_team)
+        print(f"Team '{name}' created successfully by Lecturer.")
+        return new_team
+
+    def viewAllTeam(self):
+        print("\n--- All Supervised Teams ---")
+        for t in self.supervised_teams:
+            t.show_team_info()
+
+
+# ==========================================
+# 6. Main Execution (The "User Interface")
+# ==========================================
+def main():
+    print("=== SYSTEM INITIALIZATION ===")
+    
+    # 1. Create a Lecturer
+    lecturer = Lecturer("U001", "Tan Ping Ping", "tp@uni.edu", "pass123", "L001", "Computing")
+    
+    # 2. Create Students
+    student1 = Student("U002", "Adriana", "adriana@uni.edu", "pass123", "S100", "Software Eng", 2)
+    student2 = Student("U003", "Mayar", "mayar@uni.edu", "pass123", "S101", "Software Eng", 2)
+    
+    # 3. Create a TeamLeader (Inheritance demo)
+    leader = TeamLeader("U004", "Shamsul", "sham@uni.edu", "pass123", "S999", "Software Eng", 2, "TL01")
+
+    # --- Scenario Start ---
+    
+    # Lecturer logs in and creates a team
+    if lecturer.login("tp@uni.edu", "pass123"):
+        lecturer.display_dashboard() # Polymorphism
+        team_alpha = lecturer.createTeam("T01", "Alpha Squad", "EzComm System", "CODE123")
+
+    print("\n------------------------------------------------")
+
+    # Student logs in and joins team
+    if student1.login("adriana@uni.edu", "pass123"):
+        student1.display_dashboard()
+        student1.joinTeam(team_alpha, "CODE123") # Valid Code
+        student1.display_dashboard()
+
+    print("\n------------------------------------------------")
+
+    # Leader joins and assigns tasks
+    if leader.login("sham@uni.edu", "pass123"):
+        leader.joinTeam(team_alpha, "CODE123")
+        
+        # Create Task
+        task1 = Task("TK01", "Design Class Diagram")
+        team_alpha.addTask(task1)
+        
+        # Leader specific method
+        leader.assignTask(task1, student1)
+        
+        # Overloaded method demo (Reminder)
+        rem = Reminder("R01", "Submit Report", "2025-12-23", "Urgent")
+        rem.snooze()       # Default
+        rem.snooze(15)     # Overloaded with arg
+
+    print("\n------------------------------------------------")
+
+    # Student updates task (Polymorphism/Logic)
+    student1.updateTask(task1, 50)
+    student1.updateTask(task1, 100) # Should mark as Done
+
+    print("\n------------------------------------------------")
+    
+    # Lecturer checks final view
+    lecturer.viewAllTeam()
+
+if __name__ == "__main__":
+    main()
