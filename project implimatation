@@ -1,0 +1,165 @@
+from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import List
+
+# ==========================================
+# 1. CLASS: USER (Encapsulation & Abstraction)
+# ==========================================
+class User(ABC):
+    def __init__(self, userID, name, email, password, role):
+        self.userID = userID
+        self.name = name
+        self.email = email
+        self.__password = password  # Private attribute for security
+        self.role = role
+
+    def login(self, input_password) -> bool:
+        """Requirement FR1: Secure Login Verification"""
+        return input_password == self.__password
+
+    def logout(self):
+        print(f"\n[System] User {self.name} has logged out.")
+
+    @abstractmethod
+    def dashboard(self):
+        """Requirement: Polymorphism through abstraction"""
+        pass
+
+# ==========================================
+# 2. CLASS: STUDENT & TEAM LEADER (Inheritance)
+# ==========================================
+class Student(User):
+    def __init__(self, userID, name, email, password, course, semester):
+        super().__init__(userID, name, email, password, "Student")
+        self.studentID = userID
+
+    def dashboard(self):
+        print(f"\n--- STUDENT DASHBOARD ---")
+        print(f"Name: {self.name} | ID: {self.studentID}")
+        print("--------------------------")
+        print("1. View Team Progress\n2. Update Task Status\n3. Communicate\n0. Logout")
+
+class TeamLeader(Student):
+    def __init__(self, userID, name, email, password, course, semester, appointedDate):
+        super().__init__(userID, name, email, password, course, semester)
+        self.leaderID = userID
+
+    def dashboard(self):
+        print(f"\n--- TEAM LEADER DASHBOARD ---")
+        print(f"Name: {self.name} | ID: {self.leaderID}")
+        print("------------------------------")
+        print("1. Assign/Add Task\n2. Monitor Progress\n3. Delete Task\n0. Logout")
+
+# ==========================================
+# 3. CLASS: LECTURER (FR13 & FR11)
+# ==========================================
+class Lecturer(User):
+    def __init__(self, userID, name, email, password, department, faculty):
+        super().__init__(userID, name, email, password, "Lecturer")
+        self.lecturerID = userID
+
+    def dashboard(self):
+        print(f"\n--- LECTURER DASHBOARD ---")
+        print(f"Name: {self.name} | Staff ID: {self.lecturerID}")
+        print("---------------------------")
+        print("1. Create Team\n2. View All Team Progress\n3. Review Evaluations\n4. Approve Results\n0. Logout")
+
+# ==========================================
+# 4. SYSTEM LOGIC (CRUD & Relationships)
+# ==========================================
+class Task:
+    def __init__(self, taskID, title, status="Pending"):
+        self.taskID = taskID
+        self.title = title
+        self.status = status
+
+class Team:
+    def __init__(self, teamName):
+        self.teamName = teamName
+        self.tasks: List[Task] = []
+
+    def addTask(self, tid, title):
+        self.tasks.append(Task(tid, title))
+        print(f"[Success] Task {tid} added to {self.teamName}.")
+
+    def displayProgress(self):
+        print(f"\n--- PROGRESS: {self.teamName} ---")
+        if not self.tasks:
+            print("No tasks assigned yet.")
+        else:
+            for t in self.tasks:
+                print(f"[{t.status}] ID: {t.taskID} - {t.title}")
+
+# ==========================================
+# 5. MAIN DRIVER (The Controller)
+# ==========================================
+def main():
+    # Initial "Database"
+    users = [
+        Student("100613", "Adriana", "adriana@uni.my", "123", "CS", 1),
+        TeamLeader("102675", "Mayar", "mayar@uni.my", "123", "CS", 1, "2025-01-01"),
+        Lecturer("T500", "Dr Tan", "tan@uni.my", "admin", "SE", "FCSIT")
+    ]
+    active_team = Team("GP21 EzComm")
+
+    while True:
+        print("\n=== EZCOMM SYSTEM (FINAL FIX) ===")
+        print("1. Login\n2. Register New User\n0. Exit")
+        choice = input("Select: ")
+
+        if choice == "1":
+            email = input("Email: ")
+            pw = input("Password: ")
+            # Requirement FR1: Finding user in current session list
+            user = next((u for u in users if u.email == email), None)
+
+            if user and user.login(pw):
+                while True:
+                    user.dashboard()
+                    act = input("Action: ")
+                    if act == "0":
+                        user.logout()
+                        break
+
+                    # Role-specific logic
+                    if isinstance(user, Lecturer):
+                        if act == "1": print("[Lecturer] New Team initialized.")
+                        elif act == "2": active_team.displayProgress()
+                        elif act == "3": print("[Lecturer] Reviewing Evaluations.")
+                        elif act == "4": print("[Lecturer] Results Approved.")
+                    elif isinstance(user, TeamLeader):
+                        if act == "1": active_team.addTask(input("Task ID: "), input("Title: "))
+                        elif act == "2": active_team.displayProgress()
+                        elif act == "3": print("[Leader] Task deletion logic.")
+                    elif isinstance(user, Student):
+                        if act == "1": active_team.displayProgress()
+                        elif act == "2": print("[Student] Task status update logic.")
+                        elif act == "3": print(f"[Chat] {user.name}: {input('Msg: ')}")
+            else:
+                print("[Error] Login Failed. Check email/password.")
+
+        elif choice == "2":
+            # Requirement FR1: Registering new users dynamically
+            print("\n--- REGISTRATION ---")
+            new_id = input("Enter ID: ")
+            new_name = input("Enter Name: ")
+            new_email = input("Enter Email: ")
+            new_pass = input("Enter Password: ")
+            print("Select Role: 1. Student, 2. Team Leader, 3. Lecturer")
+            r = input("Role: ")
+
+            if r == "2":
+                new_user = TeamLeader(new_id, new_name, new_email, new_pass, "CS", 1, "2025-12-23")
+            elif r == "3":
+                new_user = Lecturer(new_id, new_name, new_email, new_pass, "FCSIT", "CS")
+            else:
+                new_user = Student(new_id, new_name, new_email, new_pass, "CS", 1)
+            
+            users.append(new_user)
+            print(f"Registered! You can now log in as {new_name}.")
+
+        elif choice == "0":
+            break
+
+if __name__ == "__main__":
+    main()
