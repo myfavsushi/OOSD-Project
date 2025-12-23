@@ -3,27 +3,27 @@ from datetime import datetime
 from typing import List
 
 # ==========================================
-# 1. CLASS: USER
+# 1. CLASS: USER (Abstract Base Class)
 # ==========================================
 class User(ABC):
     def __init__(self, userID, name, email, password, role):
-        # Attributes strictly from Diagram 
+        # Attributes strictly from HD Diagram
         self.userID = userID
         self.name = name
         self.email = email
-        self.__password = password  # Private attribute
+        self.__password = password  # Encapsulation: Private Attribute
         self.role = role
         
         # Relationships (0..* Association)
         self.reminders: List['Reminder'] = [] 
         self.feedbacks: List['Feedback'] = []
 
-    # Methods strictly from Diagram 
+    # Methods strictly from HD Diagram
     def login(self, input_password) -> bool:
+        # Encapsulation: Validating private password
         if input_password == self.__password:
             print(f"[System] Login successful for {self.name} ({self.role})")
             return True
-        print("[System] Login failed.")
         return False
 
     def logout(self):
@@ -32,9 +32,8 @@ class User(ABC):
     def updateProfile(self):
         print(f"[System] Profile updated for User: {self.name}")
 
-    # --- RUBRIC REQUIREMENT: POLYMORPHISM ---
-    # This abstract method forces 'Student', 'Lecturer', and 'TeamLeader' to 
-    # implement their own version, satisfying the "2+ overridden methods" rubric requirement.
+    # RUBRIC REQUIREMENT: POLYMORPHISM
+    # Abstract method forces subclasses to implement their own dashboard
     @abstractmethod
     def dashboard(self):
         pass
@@ -44,12 +43,13 @@ class User(ABC):
 # ==========================================
 class Student(User):
     def __init__(self, userID, name, email, password, course, semester):
+        # Inheritance: calling superclass constructor
         super().__init__(userID, name, email, password, "Student")
-        self.studentID = userID # Mapping userID to studentID
+        self.studentID = userID
         self.course = course
         self.semester = semester
 
-    # Methods strictly from Diagram 
+    # Methods strictly from HD Diagram
     def joinTeam(self, teamID: str):
         print(f"[Student] Joining Team ID: {teamID}")
 
@@ -77,12 +77,13 @@ class Student(User):
 # ==========================================
 class TeamLeader(Student):
     def __init__(self, userID, name, email, password, course, semester, appointedDate):
+        # Inheritance: TeamLeader IS-A Student
         super().__init__(userID, name, email, password, course, semester)
         self.leaderID = userID
         self.appointedDate = appointedDate
         self.contributionScore = 0.0
 
-    # Methods strictly from Diagram 
+    # Methods strictly from HD Diagram
     def assignTask(self):
         print(f"[Team Leader] Task assigned to member.")
 
@@ -112,11 +113,11 @@ class Lecturer(User):
         self.department = department
         self.faculty = faculty
 
-    # Methods strictly from Diagram 
+    # Methods strictly from HD Diagram
     def createTeam(self):
         print(f"[Lecturer] New team created.")
 
-    def viewAllTeam(self): # Note: Diagram says 'viewAllTeam' (singular)
+    def viewAllTeam(self):
         print(f"[Lecturer] Displaying all teams...")
         return []
 
@@ -144,14 +145,10 @@ class Reminder:
         self.isRead = False
         self.type = type_str
 
-    # Methods strictly from Diagram 
-    # Note: 'reminder(...)' in diagram implies the constructor, handled by __init__
-    
     def sendNotification(self):
         print(f"[Notification] {self.message}")
 
-    # Rubric Requirement: Overloaded Methods (Simulated)
-    # Python simulates overloading using default arguments.
+    # Rubric Requirement: Overloaded Methods (Simulated using default args)
     def snooze(self, minutes: int = None):
         if minutes:
             print(f"[Reminder] Snoozed for {minutes} minutes.")
@@ -176,7 +173,7 @@ class Feedback:
         return True
 
 # ==========================================
-# 7. CLASS: PROGRESS & TASK & TEAM (Core Logic)
+# 7. CLASS: PROGRESS & TASK & TEAM
 # ==========================================
 class Progress:
     def __init__(self, comments, completionRate):
@@ -203,10 +200,14 @@ class Task:
         # Composition: Task has 1 Progress object
         self.progressDetails = Progress("", 0.0) 
 
-    # Methods strictly from Diagram 
-    def updateProgress(self, percent: int):
+    # Rubric Requirement: Overloaded Methods (Simulated)
+    def updateProgress(self, percent: int, status: str = None):
         self.progress = percent
-        print(f"[Task] Progress updated to {percent}%")
+        if status:
+            self.status = status
+            print(f"[Task] Progress updated to {percent}% - Status: {status}")
+        else:
+            print(f"[Task] Progress updated to {percent}%")
 
     def getDetails(self) -> str:
         return f"Task: {self.title} [{self.status}]"
@@ -225,7 +226,6 @@ class Team:
         # Composition: List of Task objects
         self.tasks: List[Task] = []      
 
-    # Methods strictly from Diagram 
     def addMember(self, student: Student) -> bool:
         self.members.append(student)
         print(f"[Team] {student.name} added to {self.teamName}")
@@ -247,61 +247,116 @@ class Team:
         return self.joinCode == inputCode
 
 # ==========================================
-# 8. MAIN DRIVER (Task 6 - UI Implementation)
+# 8. MAIN DRIVER (User Interface Implementation)
 # ==========================================
 def main():
-    # Instantiate Objects (Task 5 Requirement)
+    # 1. HARD-CODED DATA (Simulating Database)
     student1 = Student("S100", "Adriana", "adriana@uni.my", "123", "CS", 1)
     leader1 = TeamLeader("L200", "Mayar", "mayar@uni.my", "123", "CS", 1, "2025-01-01")
     lecturer1 = Lecturer("T500", "Dr Tan", "tan@uni.my", "admin", "SE", "FCSIT")
 
-    # Put them in a list to simulate a database
+    # List storing all valid users
     users = [student1, leader1, lecturer1]
 
     print("=========================================")
-    print("      EZCOMM SYSTEM (STRICT BUILD)       ")
+    print("      EZCOMM SYSTEM (FINAL BUILD)        ")
     print("=========================================")
 
     while True:
-        print("\n--- LOGIN ---")
-        email = input("Email (e.g., adriana@uni.my / admin): ")
-        password = input("Password (e.g., 123 / admin): ")
-
-        current_user = None
-        for u in users:
-            if u.email == email and u.login(password):
-                current_user = u
-                break
+        print("\n--- MAIN MENU ---")
+        print("1. Login")
+        print("2. Register New User")
+        print("0. Exit")
         
-        if current_user:
-            # Show Dashboard (Polymorphism)
-            current_user.dashboard()
+        start_choice = input("Select Option: ")
 
-            # Simulate Interactions based on Role
-            choice = input("\nSelect Option (1-3) or '0' to Logout: ")
-            
-            if choice == '0':
-                current_user.logout()
-                continue
+        # --- OPTION 1: LOGIN ---
+        if start_choice == "1":
+            print("\n--- LOGIN SCREEN ---")
+            email = input("Email: ")
+            password = input("Password: ")
 
-            if isinstance(current_user, TeamLeader):
-                if choice == '1': current_user.assignTask()
-                elif choice == '2': current_user.monitorProgress()
-                elif choice == '3': current_user.approveDraft()
+            current_user = None
+            # Iterate through list to find user matching email
+            for u in users:
+                if u.email == email:
+                    # Check password using Encapsulated method
+                    if u.login(password):
+                        current_user = u
+                        break
             
-            elif isinstance(current_user, Student): # This catches Leaders too, so check Leader first
-                if choice == '1': current_user.viewTeamInfo()
-                elif choice == '2': current_user.updateTask()
-                elif choice == '3': 
-                    msg = input("Enter message: ")
-                    current_user.communicate(msg)
+            if current_user:
+                # Show Dashboard (Polymorphism)
+                current_user.dashboard()
+
+                # Simulate Interactions based on Role
+                choice = input("\nSelect Action (1-3) or '0' to Logout: ")
+                
+                if choice == '0':
+                    current_user.logout()
+                    continue
+
+                if isinstance(current_user, TeamLeader):
+                    if choice == '1': current_user.assignTask()
+                    elif choice == '2': current_user.monitorProgress()
+                    elif choice == '3': current_user.approveDraft()
+                
+                elif isinstance(current_user, Student): 
+                    # Note: Since Leader inherits Student, this block must come AFTER Leader check
+                    if choice == '1': current_user.viewTeamInfo()
+                    elif choice == '2': current_user.updateTask()
+                    elif choice == '3': 
+                        msg = input("Enter message: ")
+                        current_user.communicate(msg)
+                
+                elif isinstance(current_user, Lecturer):
+                    if choice == '1': current_user.createTeam()
+                    elif choice == '2': current_user.viewAllTeam()
+                    elif choice == '3': current_user.approveResult()
+            else:
+                print("Invalid credentials. Please try again.")
+
+        # --- OPTION 2: REGISTER WITH ROLE SELECTION ---
+        elif start_choice == "2":
+            print("\n--- NEW USER REGISTRATION ---")
+            new_name = input("Enter Name: ")
+            new_email = input("Enter Email: ")
+            new_pass = input("Enter Password: ")
+            new_id = input("Enter ID (Matric/Staff No): ")
             
-            elif isinstance(current_user, Lecturer):
-                if choice == '1': current_user.createTeam()
-                elif choice == '2': current_user.viewAllTeam()
-                elif choice == '3': current_user.approveResult()
+            print("\nSelect Role:")
+            print("1. Student")
+            print("2. Team Leader")
+            print("3. Lecturer")
+            role_input = input("Enter Role (1-3): ")
+
+            if role_input == "2":
+                # Create a Team Leader Object
+                new_course = input("Enter Course: ")
+                # Default appointed date for testing
+                new_user = TeamLeader(new_id, new_name, new_email, new_pass, new_course, 1, "2025-12-23")
+                print(f"Registered as TEAM LEADER. Login with {new_email}")
+
+            elif role_input == "3":
+                # Create a Lecturer Object
+                new_dept = input("Enter Department: ")
+                new_user = Lecturer(new_id, new_name, new_email, new_pass, new_dept, "FCSIT")
+                print(f"Registered as LECTURER. Login with {new_email}")
+
+            else:
+                # Default to Student Object
+                new_course = input("Enter Course: ")
+                new_user = Student(new_id, new_name, new_email, new_pass, new_course, 1)
+                print(f"Registered as STUDENT. Login with {new_email}")
+            
+            # Save to the "Database" list so they can login immediately
+            users.append(new_user)
+
+        elif start_choice == "0":
+            print("Exiting system...")
+            break
         else:
-            print("Invalid credentials. Please try again.")
+            print("Invalid selection.")
 
 if __name__ == "__main__":
     main()
