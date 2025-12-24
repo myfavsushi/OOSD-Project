@@ -3,15 +3,19 @@ from datetime import datetime
 from typing import List
 
 # ==========================================
-# 1. CLASS: USER (Abstraction & Encapsulation)
+# 1. CLASS: USER (Abstract Base Class)
+# Matches Diagram & FR1 (Secure Login), FR15 (Secure Data)
 # ==========================================
 class User(ABC):
     def __init__(self, userID, name, email, password, role):
         self.userID = userID
         self.name = name
         self.email = email
-        self.__password = password
+        self.__password = password # Encapsulation
         self.role = role
+        # Relationships (Required for Diagram Consistency)
+        self.reminders: List['Reminder'] = [] 
+        self.feedbacks: List['Feedback'] = []
 
     def login(self, input_password):
         return input_password == self.__password
@@ -21,7 +25,40 @@ class User(ABC):
         pass
 
 # ==========================================
-# 2. STUDENT & LEADER (Inheritance)
+# 2. HELPER CLASSES
+# Matches Diagram & FR10, FR14
+# ==========================================
+class Reminder:
+    def __init__(self, message):
+        self.message = message
+        self.timestamp = datetime.now()
+    
+    def sendNotification(self):
+        # FR10: System notifies members
+        print(f"\n[NOTIFICATION] {self.message} (at {self.timestamp.strftime('%H:%M')})")
+
+class IssueReport:
+    # Handles FR14: Report Technical Issues
+    def __init__(self, reporter_email, issue_desc):
+        self.reporter = reporter_email
+        self.description = issue_desc
+        print(f"[System] Issue reported by {reporter_email}: '{issue_desc}' - SENT TO ADMIN.")
+
+class Feedback:
+    def __init__(self, rating, comments):
+        self.rating = rating
+        self.comments = comments
+
+    def storeEvaluation(self):
+        print("Feedback stored.")
+
+class Progress:
+    def __init__(self, completionRate):
+        self.completionRate = completionRate
+
+# ==========================================
+# 3. STUDENT & LEADER
+# Matches Diagram & FR2, FR5, FR7
 # ==========================================
 class Student(User):
     def __init__(self, userID, name, email, password, course, semester):
@@ -29,25 +66,35 @@ class Student(User):
         self.studentID = userID
 
     def dashboard(self):
-        print(f"\n--- STUDENT DASHBOARD ---")
-        print(f"Name: {self.name} | ID: {self.studentID}")
-        print("--------------------------")
-        print("1. View Available Teams\n2. Join a Team\n3. Create Your Own Team\n4. View My Team Progress\n5. Update Task Status\n0. Logout")
+        print(f"\n--- STUDENT DASHBOARD ({self.name}) ---")
+        print("1. View Available Teams")
+        print("2. Join a Team")
+        print("3. Create Your Own Team")
+        print("4. View My Team Progress")
+        print("5. Update Task Status") # FR7
+        print("6. Add Comment to Task") # FR9
+        print("7. Leave Team") # FR2
+        print("0. Logout")
 
 class TeamLeader(Student):
     def __init__(self, userID, name, email, password, course, semester, appointedDate=None):
-        super().__init__(userID, name, email, password, course, semester)
+        super().__init__(userID, name, email, password, "Team Leader", semester)
         self.leaderID = userID
         self.appointedDate = appointedDate if appointedDate else datetime.now().strftime("%Y-%m-%d")
 
     def dashboard(self):
-        print(f"\n--- TEAM LEADER DASHBOARD ---")
-        print(f"Name: {self.name} | ID: {self.leaderID}")
-        print("------------------------------")
-        print("1. View Team Progress\n2. Assign/Add Task\n3. Delete Task\n0. Logout")
+        print(f"\n--- TEAM LEADER DASHBOARD ({self.name}) ---")
+        print("1. View Team Progress")
+        print("2. Assign/Add Task") # FR5, FR6
+        print("3. Delete Task") # FR5
+        print("4. Manage Members (Invite/Remove)") # FR4
+        print("5. View Contribution Report") # FR12
+        print("6. Switch to Student Actions (Update/Comment/Leave)")
+        print("0. Logout")
 
 # ==========================================
-# 3. CLASS: LECTURER
+# 4. CLASS: LECTURER
+# Matches Diagram & FR13
 # ==========================================
 class Lecturer(User):
     def __init__(self, userID, name, email, password, department, faculty):
@@ -55,57 +102,86 @@ class Lecturer(User):
         self.lecturerID = userID
 
     def dashboard(self):
-        print(f"\n--- LECTURER DASHBOARD ---")
-        print(f"Name: {self.name} | Staff ID: {self.lecturerID}")
-        print("---------------------------")
-        print("1. View All Teams & Leaders\n2. Review Evaluations\n3. Approve Results\n0. Logout")
+        print(f"\n--- LECTURER DASHBOARD ({self.name}) ---")
+        print("1. View All Teams & Summaries") # FR13
+        print("2. Approve Results")
+        print("0. Logout")
 
 # ==========================================
-# 4. TASK & TEAM (Multi-Group Logic)
+# 5. TASK & TEAM
+# Matches Diagram & FR6, FR8, FR9
 # ==========================================
 class Task:
-    def __init__(self, taskID, title):
+    def __init__(self, taskID, title, description, priority, deadline, assignee):
         self.taskID = taskID
         self.title = title
-        self.status = "Pending"
+        self.description = description # FR6
+        self.priority = priority # FR6
+        self.deadline = deadline # FR6
+        self.assignee = assignee # FR6
+        self.status = "To Do"
+        self.comments = [] # FR9
+
+    def add_comment(self, comment):
+        self.comments.append(comment)
+        print("Comment added.")
 
 class Team:
     def __init__(self, teamName, leader: TeamLeader):
         self.teamName = teamName
-        self.leader = leader  # Shows who is the leader of the group
-        self.members: List[Student] = [leader] # Aggregation: Starts with leader
-        self.tasks: List[Task] = [] # Composition
+        self.leader = leader
+        self.members: List[Student] = [leader]
+        self.tasks: List[Task] = []
 
     def displayInfo(self):
-        print(f"Group: {self.teamName} | Leader: {self.leader.name}")
+        print(f"Group: {self.teamName} | Leader: {self.leader.name} | Members: {len(self.members)}")
 
+    # FR8: Dashboard/Kanban Board Display
     def displayProgress(self):
-        print(f"\n--- PROGRESS: {self.teamName} ---")
+        print(f"\n--- KANBAN BOARD: {self.teamName} ---")
         if not self.tasks:
-            print("[System] No task yet.")
+            print("[System] No tasks assigned yet.")
         else:
+            print(f"{'ID':<5} {'Title':<15} {'Assignee':<10} {'Priority':<10} {'Status':<12} {'Deadline'}")
+            print("-" * 70)
             for t in self.tasks:
-                print(f"[{t.status}] ID: {t.taskID} - {t.title}")
+                assignee_name = t.assignee.name if t.assignee else "Unassigned"
+                print(f"{t.taskID:<5} {t.title:<15} {assignee_name:<10} {t.priority:<10} {t.status:<12} {t.deadline}")
+                if t.comments:
+                    print(f"   L Comments: {', '.join(t.comments)}")
+
+    # FR12: Member Contributions
+    def generateContributionReport(self):
+        print(f"\n--- CONTRIBUTION REPORT: {self.teamName} ---")
+        counts = {m.name: 0 for m in self.members}
+        for t in self.tasks:
+            if t.status == "Done" and t.assignee:
+                counts[t.assignee.name] += 1
+        
+        for member, count in counts.items():
+            print(f"Member: {member:<15} | Completed Tasks: {count}")
 
 # ==========================================
-# 5. MAIN DRIVER
+# 6. MAIN DRIVER
 # ==========================================
 def main():
     # Initial Data
-    users = [
-        Student("100613", "Adriana", "adriana@uni.my", "123", "CS", 1),
-        TeamLeader("102675", "Mayar", "mayar@uni.my", "123", "CS", 1, "2025-01-01"),
-        Lecturer("T500", "Dr Tan", "tan@uni.my", "admin", "SE", "FCSIT")
-    ]
+    s1 = Student("100613", "Adriana", "adriana@uni.my", "123", "CS", 1)
+    l1 = TeamLeader("102675", "Mayar", "mayar@uni.my", "123", "CS", 1, "2025-01-01")
+    lec = Lecturer("T500", "Dr Tan", "tan@uni.my", "admin", "SE", "FCSIT")
     
-    # Store multiple groups to satisfy Project Scope
-    all_teams: List[Team] = [Team("EzComm GP21", users[1])]
+    users = [s1, l1, lec]
+    all_teams: List[Team] = [Team("EzComm GP21", l1)]
 
     while True:
-        print("\n=== EZCOMM SYSTEM (MULTI-GROUP BUILD) ===")
-        print("1. Login\n2. Register New User\n0. Exit")
+        print("\n=== EZCOMM SYSTEM (FR1-FR15 COMPLIANT) ===")
+        print("1. Login (FR1)")
+        print("2. Register New User (FR1)")
+        print("3. Report Technical Issue (FR14)")
+        print("0. Exit")
         choice = input("Select: ")
 
+        # --- OPTION 1: LOGIN ---
         if choice == "1":
             email = input("Email: ")
             pw = input("Password: ")
@@ -117,57 +193,167 @@ def main():
                     act = input("Action: ")
                     if act == "0": break
 
-                    # TEAM LEADER ACTIONS
+                    # --- TEAM LEADER SPECIFIC ---
                     if isinstance(user, TeamLeader):
-                        # Find the team this leader belongs to
                         my_team = next((t for t in all_teams if t.leader == user), None)
+                        
                         if act == "1": 
                             if my_team: my_team.displayProgress()
-                            else: print("You are not leading any team yet.")
-                        elif act == "2":
-                            if my_team: my_team.tasks.append(Task(input("ID: "), input("Title: ")))
+                            else: print("No team found.")
+                        
+                        elif act == "2": # FR5 & FR6: Create Task with Details
+                            if my_team: 
+                                print("\n--- NEW TASK DETAILS (FR6) ---")
+                                tid = input("ID: ")
+                                title = input("Title: ")
+                                desc = input("Description: ")
+                                prio = input("Priority (High/Med/Low): ")
+                                dead = input("Deadline (YYYY-MM-DD): ")
+                                
+                                # Assign to member
+                                print("Assign to:")
+                                for i, m in enumerate(my_team.members):
+                                    print(f"{i+1}. {m.name}")
+                                m_idx = int(input("Select Member No: ")) - 1
+                                assignee = my_team.members[m_idx]
+
+                                new_task = Task(tid, title, desc, prio, dead, assignee)
+                                my_team.tasks.append(new_task)
+                                
+                                # FR10: Notification
+                                Reminder(f"New Task '{title}' assigned to {assignee.name}").sendNotification()
                             else: print("Create a team first.")
-                        elif act == "3":
+
+                        elif act == "3": # FR5: Delete Task
                             if my_team:
                                 tid = input("Task ID to delete: ")
                                 my_team.tasks = [t for t in my_team.tasks if t.taskID != tid]
                                 print("Task deleted.")
 
-                    # STUDENT ACTIONS
-                    elif isinstance(user, Student):
-                        if act == "1": # View Available Teams & Leaders
-                            print("\n--- AVAILABLE TEAMS ---")
-                            for i, t in enumerate(all_teams):
-                                print(f"{i+1}. ", end="")
-                                t.displayInfo()
-                        elif act == "2": # Join a Team
-                            print("Select team number to join:")
-                            idx = int(input("Number: ")) - 1
-                            if 0 <= idx < len(all_teams):
-                                all_teams[idx].members.append(user)
-                                print(f"Joined {all_teams[idx].teamName}!")
-                        elif act == "3": # Create Your Own Team (Becomes Leader)
-                            new_name = input("New Team Name: ")
-                            # Promote student to TeamLeader for this team
-                            leader_profile = TeamLeader(user.userID, user.name, user.email, "123", "CS", 1)
-                            all_teams.append(Team(new_name, leader_profile))
-                            print(f"Team '{new_name}' created. You are the Leader!")
-                        elif act == "4": # View Progress of teams I'm in
-                            for t in all_teams:
-                                if user in t.members: t.displayProgress()
+                        elif act == "4": # FR4: Invite/Remove
+                            if my_team:
+                                sub = input("1. Invite | 2. Remove: ")
+                                if sub == "1":
+                                    inv_email = input("Email to invite: ")
+                                    target = next((u for u in users if u.email == inv_email and isinstance(u, Student)), None)
+                                    if target: 
+                                        my_team.members.append(target)
+                                        print("Member added.")
+                                    else: print("User not found.")
+                                elif sub == "2":
+                                    rem_email = input("Email to remove: ")
+                                    target = next((m for m in my_team.members if m.email == rem_email), None)
+                                    if target and target != user:
+                                        my_team.members.remove(target)
+                                        print("Member removed.")
+                                    else: print("Cannot remove.")
 
-                    # LECTURER ACTIONS
-                    elif isinstance(user, Lecturer):
-                        if act == "1":
-                            print("\n--- ALL TEAMS & LEADERS ---")
-                            for t in all_teams:
-                                t.displayInfo()
-                                t.displayProgress()
-            else:
-                print("Invalid login.")
+                        elif act == "5": # FR12: Contribution Report
+                            if my_team: my_team.generateContributionReport()
+
+                    # --- STUDENT ACTIONS ---
+                    if isinstance(user, Student):
+                        # Switch logic for Leaders using Option 6
+                        if (isinstance(user, TeamLeader) and act == "6") or (not isinstance(user, TeamLeader)):
+                            if isinstance(user, TeamLeader):
+                                print("\n--- STUDENT ACTIONS MODE ---")
+                                print("4. View Progress | 5. Update Status | 6. Add Comment | 7. Leave")
+                                sub_act = input("Select Student Action: ")
+                            else:
+                                sub_act = act
+
+                            if sub_act == "1": # View Teams
+                                for i, t in enumerate(all_teams):
+                                    print(f"{i+1}. ", end="")
+                                    t.displayInfo()
+
+                            elif sub_act == "2": # Join Team (UPDATED: DISPLAYS LIST)
+                                print("\n--- AVAILABLE TEAMS TO JOIN ---")
+                                if not all_teams:
+                                    print("No teams exist yet. Create one (Option 3).")
+                                else:
+                                    for i, t in enumerate(all_teams):
+                                        print(f"{i+1}. ", end="")
+                                        t.displayInfo()
+                                    
+                                    try:
+                                        idx_input = input("Select Team Number to join: ")
+                                        idx = int(idx_input) - 1
+                                        if 0 <= idx < len(all_teams):
+                                            target_team = all_teams[idx]
+                                            if user in target_team.members:
+                                                print(f"You are already in '{target_team.teamName}'.")
+                                            else:
+                                                target_team.members.append(user)
+                                                print(f"Success! Joined '{target_team.teamName}'.")
+                                        else:
+                                            print("Invalid Team Number.")
+                                    except ValueError:
+                                        print("Please enter a valid number.")
+
+                            elif sub_act == "3": # Create Team
+                                name = input("Team Name: ")
+                                new_leader = TeamLeader(user.userID, user.name, user.email, pw, "CS", 1)
+                                all_teams.append(Team(name, new_leader))
+                                users.remove(user); users.append(new_leader); user = new_leader
+                                print("Team Created.")
+
+                            elif sub_act == "4": # FR11: Overall Progress
+                                for t in all_teams:
+                                    if user in t.members: t.displayProgress()
+
+                            elif sub_act == "5": # FR7: Update Status
+                                my_teams = [t for t in all_teams if user in t.members]
+                                if my_teams:
+                                    t = my_teams[0] # Pick first for demo
+                                    tid = input("Task ID: ")
+                                    task = next((k for k in t.tasks if k.taskID == tid), None)
+                                    if task:
+                                        stat = input("Status (To Do / In Progress / Done): ")
+                                        task.status = stat
+                                        # FR10: Notify
+                                        Reminder(f"Task {tid} updated to {stat}").sendNotification()
+
+                            elif sub_act == "6": # FR9: Add Comment
+                                my_teams = [t for t in all_teams if user in t.members]
+                                if my_teams:
+                                    tid = input("Task ID: ")
+                                    task = next((k for k in my_teams[0].tasks if k.taskID == tid), None)
+                                    if task:
+                                        cmt = input("Comment: ")
+                                        task.add_comment(f"{user.name}: {cmt}")
+
+                            elif sub_act == "7": # FR2: Leave Team
+                                my_teams = [t for t in all_teams if user in t.members]
+                                if my_teams:
+                                    target = my_teams[0]
+                                    if user == target.leader:
+                                        print("Leader cannot leave. Delete team instead.")
+                                    else:
+                                        target.members.remove(user)
+                                        print("Left team.")
+
+                    # --- LECTURER ACTIONS ---
+                    if isinstance(user, Lecturer):
+                        if act == "1": # FR13
+                            for t in all_teams: t.displayInfo(); t.displayProgress()
+                        elif act == "2":
+                            print("Results Approved.")
+
+            else: print("Login Failed.")
+
+        # --- OPTION 2: REGISTER ---
         elif choice == "2":
-            users.append(Student(input("ID: "), input("Name: "), input("Email: "), input("Password: "), "CS", 1))
-            print("Registered!")
+            uid = input("ID: "); name = input("Name: "); email = input("Email: "); pw = input("Pass: ")
+            users.append(Student(uid, name, email, pw, "CS", 1))
+            print("Registered.")
+
+        # --- OPTION 3: REPORT ISSUE (FR14) ---
+        elif choice == "3":
+            e = input("Your Email: ")
+            desc = input("Describe Issue: ")
+            IssueReport(e, desc)
+
         elif choice == "0": break
 
 if __name__ == "__main__":
